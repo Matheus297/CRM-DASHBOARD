@@ -1,0 +1,11 @@
+.local
+__pycache__
+sessions
+uploads
+attached_assets
+static
+.replit
+uv
+*.lock
+*.pyc
+*.db
