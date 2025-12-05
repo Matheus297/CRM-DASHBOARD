@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual Environment
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Distribution / Packaging
+dist/
+build/
+*.egg-info/
+
+# Application specific
+sessions/
+uploads/*
+!uploads/.gitkeep
+attached_assets/
+
+# IDE / Editor
+.idea/
+.vscode/
+*.swp

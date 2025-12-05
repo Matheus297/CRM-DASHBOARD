@@ -1,0 +1,255 @@
+{% extends "base.html" %}
+
+{% block title %}Preparar Mensagem em Massa{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="card shadow mb-4">
+        <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="fab fa-whatsapp me-2"></i>Preparar Mensagem em Massa</h5>
+        </div>
+        <div class="card-body">
+            <div class="alert alert-info mb-4">
+                <i class="fas fa-info-circle me-2"></i>
+                <span>Você selecionou <strong>{{ leads|length }} lead{{ 's' if leads|length != 1 else '' }}</strong> para envio de mensagem. Prepare o texto abaixo.</span>
+            </div>
+            
+            <form action="{{ url_for('whatsapp_batch_send') }}" method="POST" id="messageForm">
+                <div class="mb-4">
+                    <label for="messageContent" class="form-label fw-bold">Mensagem:</label>
+                    <textarea class="form-control" id="messageContent" name="message" rows="6" required></textarea>
+                    <div class="form-text">
+                        <p>Você pode usar as seguintes variáveis que serão substituídas pelos dados dos leads:</p>
+                        <ul class="mb-0">
+                            <li><code>{nome}</code> - Nome do lead</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="d-flex justify-content-between mb-4">
+                    <div class="dropdown">
+                        <button class="btn btn-outline-primary dropdown-toggle" type="button" id="templateDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="far fa-file-alt me-2"></i>Usar Template
+                        </button>
+                        <ul class="dropdown-menu" aria-labelledby="templateDropdown">
+                            {% if templates %}
+                                {% for template in templates %}
+                                <li>
+                                    <a class="dropdown-item template-item" href="#" data-content="{{ template.content }}">
+                                        {{ template.name }}
+                                    </a>
+                                </li>
+                                {% endfor %}
+                            {% else %}
+                                <li><span class="dropdown-item disabled">Nenhum template disponível</span></li>
+                            {% endif %}
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <a class="dropdown-item" href="{{ url_for('message_templates') }}">
+                                    <i class="fas fa-plus me-2"></i>Criar Novo Template
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                    
+                    <button type="button" class="btn btn-outline-info" id="previewBtn">
+                        <i class="fas fa-eye me-2"></i>Pré-visualizar
+                    </button>
+                </div>
+                
+                <h5 class="mb-3">Leads Selecionados:</h5>
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Nome</th>
+                                <th>Telefone</th>
+                                <th>Status</th>
+                                <th style="width: 40px;">Remover</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for lead in leads %}
+                            <tr>
+                                <td>{{ lead.name }}</td>
+                                <td>{{ lead.phone }}</td>
+                                <td>
+                                    <span class="badge rounded-pill 
+                                        {% if lead.status == 'frio' %}bg-secondary
+                                        {% elif lead.status == 'quente' %}bg-warning text-dark
+                                        {% elif lead.status == 'fervendo' %}bg-danger
+                                        {% elif lead.status == 'cliente' %}bg-success
+                                        {% endif %}">
+                                        {{ lead.status|capitalize }}
+                                    </span>
+                                </td>
+                                <td class="text-center">
+                                    <div class="form-check">
+                                        <input class="form-check-input lead-checkbox" type="checkbox" name="lead_ids" value="{{ lead.id }}" checked hidden>
+                                        <button type="button" class="btn btn-sm btn-outline-danger remove-lead" data-lead-id="{{ lead.id }}">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="mb-4">
+                    <h5>Método de Envio:</h5>
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="radio" name="send_mode" id="sendModeManual" value="manual" checked>
+                        <label class="form-check-label" for="sendModeManual">
+                            <i class="fas fa-user me-2"></i>Envio Manual (Com Confirmação Individual)
+                            <div class="text-muted small">Abrirá uma lista de botões para enviar cada mensagem individualmente.</div>
+                        </label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="send_mode" id="sendModeAuto" value="auto">
+                        <label class="form-check-label" for="sendModeAuto">
+                            <i class="fas fa-bolt me-2"></i>Envio Automático (Com WhatsApp Web)
+                            <div class="text-muted small">Abrirá o WhatsApp Web automaticamente e enviará todas as mensagens. Você precisará escanear o QR code na primeira vez.</div>
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="d-flex justify-content-between mt-4">
+                    <a href="{{ url_for('whatsapp_bulk') }}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left me-2"></i>Voltar à Seleção
+                    </a>
+                    <button type="submit" class="btn btn-success" id="submitButton">
+                        <i class="fab fa-whatsapp me-2"></i><span id="submitText">Enviar Mensagens</span>
+                    </button>
+                </div>
+                
+                <script>
+                    // Atualizar o texto do botão com base no modo de envio selecionado
+                    document.addEventListener('DOMContentLoaded', function() {
+                        const manualRadio = document.getElementById('sendModeManual');
+                        const autoRadio = document.getElementById('sendModeAuto');
+                        const submitButton = document.getElementById('submitButton');
+                        const submitText = document.getElementById('submitText');
+                        
+                        function updateButtonLabel() {
+                            if (autoRadio.checked) {
+                                submitText.innerHTML = '<i class="fas fa-bolt me-1"></i> Enviar Automaticamente';
+                                submitButton.classList.add('btn-warning');
+                                submitButton.classList.remove('btn-success');
+                            } else {
+                                submitText.innerHTML = '<i class="fab fa-whatsapp me-1"></i> Enviar Mensagens';
+                                submitButton.classList.add('btn-success');
+                                submitButton.classList.remove('btn-warning');
+                            }
+                        }
+                        
+                        manualRadio.addEventListener('change', updateButtonLabel);
+                        autoRadio.addEventListener('change', updateButtonLabel);
+                        
+                        // Inicializar
+                        updateButtonLabel();
+                    });
+                </script>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Pré-visualização -->
+<div class="modal fade" id="previewModal" tabindex="-1" aria-labelledby="previewModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title" id="previewModalLabel">Pré-visualização da Mensagem</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-secondary">
+                    <strong>Como vai aparecer para:</strong> <span id="previewLeadName"></span>
+                </div>
+                <div class="border rounded p-3 bg-light">
+                    <div id="previewContent" class="whatsapp-preview"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Template selection
+        const templateItems = document.querySelectorAll('.template-item');
+        const messageContent = document.getElementById('messageContent');
+        
+        templateItems.forEach(item => {
+            item.addEventListener('click', function(e) {
+                e.preventDefault();
+                messageContent.value = this.getAttribute('data-content');
+            });
+        });
+        
+        // Remove lead from selection
+        const removeButtons = document.querySelectorAll('.remove-lead');
+        
+        removeButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const leadId = this.getAttribute('data-lead-id');
+                const checkbox = document.querySelector(`input[name="lead_ids"][value="${leadId}"]`);
+                const row = this.closest('tr');
+                
+                if (checkbox) {
+                    checkbox.checked = false;
+                }
+                
+                if (row) {
+                    row.style.display = 'none';
+                }
+                
+                // Check if all leads are removed
+                const visibleRows = document.querySelectorAll('tbody tr[style="display: none;"]');
+                if (visibleRows.length === {{ leads|length }}) {
+                    // All leads removed, go back to selection
+                    window.location.href = "{{ url_for('whatsapp_bulk') }}";
+                }
+            });
+        });
+        
+        // Preview functionality
+        const previewBtn = document.getElementById('previewBtn');
+        const previewModal = new bootstrap.Modal(document.getElementById('previewModal'));
+        const previewContent = document.getElementById('previewContent');
+        const previewLeadName = document.getElementById('previewLeadName');
+        
+        previewBtn.addEventListener('click', function() {
+            // Get first visible lead for preview
+            const firstVisibleRow = document.querySelector('tbody tr:not([style="display: none;"])');
+            if (firstVisibleRow) {
+                const leadName = firstVisibleRow.cells[0].textContent.trim();
+                previewLeadName.textContent = leadName;
+                
+                // Format message with variables
+                let formattedMessage = messageContent.value;
+                formattedMessage = formattedMessage.replace(/{nome}/g, leadName);
+                
+                // Apply line breaks and display in preview
+                previewContent.innerHTML = formattedMessage.replace(/\n/g, '<br>');
+                
+                previewModal.show();
+            }
+        });
+    });
+</script>
+
+<style>
+    .whatsapp-preview {
+        font-family: Arial, sans-serif;
+        white-space: pre-line;
+    }
+</style>
+{% endblock %}

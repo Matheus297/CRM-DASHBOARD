@@ -1,0 +1,221 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ lead.name }} - Leads CRM{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>
+            <i class="fas fa-user me-2"></i>Detalhes do Lead
+        </h1>
+        <div>
+            <a href="{{ url_for('edit_lead', lead_id=lead.id) }}" class="btn btn-warning">
+                <i class="fas fa-edit me-2"></i>Editar
+            </a>
+            <a href="{{ url_for('send_message', lead_id=lead.id) }}" class="btn btn-success ms-2">
+                <i class="far fa-envelope me-2"></i>Enviar Lembrete
+            </a>
+            <a href="{{ url_for('whatsapp_send', lead_id=lead.id) }}" class="btn btn-success ms-2" style="background-color: #25D366; border-color: #25D366;">
+                <i class="fab fa-whatsapp me-2"></i>WhatsApp
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Lead Details Card -->
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>{{ lead.name }}</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-sm-4 fw-bold">Telefone:</div>
+                        <div class="col-sm-8">
+                            <a href="tel:{{ lead.phone }}">{{ lead.phone }}</a>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-sm-4 fw-bold">Email:</div>
+                        <div class="col-sm-8">
+                            {% if lead.email %}
+                                <a href="mailto:{{ lead.email }}">{{ lead.email }}</a>
+                            {% else %}
+                                <span class="text-muted">Não fornecido</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-sm-4 fw-bold">Status:</div>
+                        <div class="col-sm-8">
+                            {% if lead.status == 'frio' %}
+                                <span class="badge bg-primary">Frio</span>
+                                <form action="{{ url_for('advance_lead_status', lead_id=lead.id) }}" method="POST" class="d-inline">
+                                    <button type="submit" class="btn btn-sm btn-outline-warning ms-2">
+                                        <i class="fas fa-arrow-right"></i> Avançar para Quente
+                                    </button>
+                                </form>
+                            {% elif lead.status == 'quente' %}
+                                <span class="badge bg-warning">Quente</span>
+                                <form action="{{ url_for('advance_lead_status', lead_id=lead.id) }}" method="POST" class="d-inline">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger ms-2">
+                                        <i class="fas fa-arrow-right"></i> Avançar para Fervendo
+                                    </button>
+                                </form>
+                            {% elif lead.status == 'fervendo' %}
+                                <span class="badge bg-danger">Fervendo</span>
+                                <form action="{{ url_for('advance_lead_status', lead_id=lead.id) }}" method="POST" class="d-inline">
+                                    <button type="submit" class="btn btn-sm btn-outline-success ms-2">
+                                        <i class="fas fa-check"></i> Converter em Cliente
+                                    </button>
+                                </form>
+                            {% elif lead.status == 'cliente' %}
+                                <span class="badge bg-success">Cliente</span>
+                                <span class="text-muted ms-2"><small><i class="fas fa-check"></i> Estágio final</small></span>
+                            {% endif %}
+                            
+                            <!-- Botão para abrir modal de atualização de status personalizado -->
+                            <button type="button" class="btn btn-sm btn-outline-secondary ms-2" data-bs-toggle="modal" data-bs-target="#statusModal">
+                                <i class="fas fa-edit"></i> Personalizar
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-sm-4 fw-bold">Próximo Contato:</div>
+                        <div class="col-sm-8">
+                            {% if lead.next_contact_date %}
+                                {% if lead.next_contact_date < now() %}
+                                    <span class="badge bg-danger">Atrasado</span>
+                                {% elif (lead.next_contact_date - now()).total_seconds() < 86400 %}
+                                    <span class="badge bg-warning">Hoje</span>
+                                {% elif (lead.next_contact_date - now()).total_seconds() < 172800 %}
+                                    <span class="badge bg-info">Amanhã</span>
+                                {% endif %}
+                                {{ lead.next_contact_date.strftime('%Y-%m-%d %H:%M') }}
+                            {% else %}
+                                <span class="text-muted">Não agendado</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-sm-4 fw-bold">Criado em:</div>
+                        <div class="col-sm-8">{{ lead.created_at.strftime('%Y-%m-%d') }}</div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-sm-4 fw-bold">Anotações:</div>
+                        <div class="col-sm-8">
+                            {% if lead.notes %}
+                                {{ lead.notes|nl2br }}
+                            {% else %}
+                                <span class="text-muted">Sem anotações</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteLeadModal">
+                        <i class="fas fa-trash-alt me-2"></i>Excluir Lead
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Schedule Contact Card -->
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="far fa-calendar-plus me-2"></i>Agendar Contato</h5>
+                </div>
+                <div class="card-body">
+                    <form action="{{ url_for('schedule_contact') }}" method="POST">
+                        <input type="hidden" name="lead_id" value="{{ lead.id }}">
+                        
+                        <div class="mb-3">
+                            <label for="scheduled_time" class="form-label">Data e Hora</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="far fa-calendar-alt"></i></span>
+                                <input type="datetime-local" class="form-control" id="scheduled_time" name="scheduled_time" required>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="notes" class="form-label">Anotações</label>
+                            <textarea class="form-control" id="notes" name="notes" rows="3" placeholder="Adicione anotações sobre este contato"></textarea>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary">
+                            <i class="far fa-calendar-check me-2"></i>Salvar Agendamento
+                        </button>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Message History Card (Placeholder for future enhancement) -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="far fa-comment-dots me-2"></i>Histórico de Lembretes</h5>
+                </div>
+                <div class="card-body text-center py-4">
+                    <i class="far fa-comments fa-3x text-muted mb-3"></i>
+                    <p>O histórico de lembretes será exibido aqui em atualizações futuras.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Lead Modal -->
+<div class="modal fade" id="deleteLeadModal" tabindex="-1" aria-labelledby="deleteLeadModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="deleteLeadModalLabel">Confirmar Exclusão</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Tem certeza que deseja excluir <strong>{{ lead.name }}</strong>? Esta ação não pode ser desfeita.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <form action="{{ url_for('delete_lead', lead_id=lead.id) }}" method="POST">
+                    <button type="submit" class="btn btn-danger">Excluir</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Status Update Modal -->
+<div class="modal fade" id="statusModal" tabindex="-1" aria-labelledby="statusModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="statusModalLabel">Atualizar Status do Lead</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="{{ url_for('update_lead_status', lead_id=lead.id) }}" method="POST">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="status" class="form-label">Status</label>
+                        <select class="form-select" id="status" name="status" required>
+                            <option value="frio" {% if lead.status == 'frio' %}selected{% endif %}>Frio</option>
+                            <option value="quente" {% if lead.status == 'quente' %}selected{% endif %}>Quente</option>
+                            <option value="fervendo" {% if lead.status == 'fervendo' %}selected{% endif %}>Fervendo</option>
+                            <option value="cliente" {% if lead.status == 'cliente' %}selected{% endif %}>Cliente</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Salvar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

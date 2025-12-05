@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block title %}Registrar - OPAI-CRM{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6 col-lg-5">
+        <div class="card">
+            <div class="card-body p-4">
+                <div class="text-center mb-4">
+                    <img src="{{ url_for('static', filename='images/logo_novo_v2.png') }}?v=3" alt="OPAI-CRM Logo" height="120" class="mb-3">
+                    <h3>Criar Conta</h3>
+                    <p class="text-muted">Registre-se para começar</p>
+                </div>
+
+                <form method="POST" action="{{ url_for('register') }}">
+                    <div class="mb-3">
+                        <label for="username" class="form-label">Nome de Usuário</label>
+                        <input type="text" class="form-control" id="username" name="username" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Email</label>
+                        <input type="email" class="form-control" id="email" name="email" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="whatsapp_number" class="form-label">WhatsApp (Opcional)</label>
+                        <input type="tel" class="form-control" id="whatsapp_number" name="whatsapp_number" placeholder="+55 (11) 99999-9999">
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Senha</label>
+                        <input type="password" class="form-control" id="password" name="password" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="confirm_password" class="form-label">Confirmar Senha</label>
+                        <input type="password" class="form-control" id="confirm_password" name="confirm_password" required>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100">Registrar</button>
+                </form>
+
+                <div class="text-center mt-3">
+                    <img src="{{ url_for('static', filename='images/mascote3.png') }}?v=3" alt="Mascote" height="90" class="d-block mx-auto mb-3">
+                    <p class="text-muted">Já tem uma conta? <a href="{{ url_for('login') }}">Faça login</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

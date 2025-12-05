@@ -1,0 +1,134 @@
+{% extends 'base.html' %}
+
+{% block title %}Contatos Agendados - Leads CRM{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1 class="mb-4"><i class="far fa-calendar-check me-2"></i>Contatos Agendados</h1>
+    
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Lembretes de Contato</h5>
+                </div>
+                <div class="card-body">
+                    <p>
+                        <strong>Por que agendar contatos?</strong> Manter contato regular com seus leads é essencial para:
+                    </p>
+                    <ul>
+                        <li>Manter o relacionamento aquecido</li>
+                        <li>Não perder oportunidades de negócio</li>
+                        <li>Progredir leads no funil de vendas</li>
+                        <li>Organizar seu tempo de forma mais eficiente</li>
+                    </ul>
+                    <p>
+                        <a href="{{ url_for('schedule_contact') }}" class="btn btn-primary">
+                            <i class="far fa-calendar-plus me-2"></i>Agendar Novo Contato
+                        </a>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Upcoming Contacts Card -->
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="fas fa-clock me-2"></i>Próximos Contatos</h5>
+                </div>
+                <div class="card-body p-0">
+                    {% if upcoming_contacts %}
+                    <div class="list-group list-group-flush">
+                        {% for contact in upcoming_contacts %}
+                        <div class="list-group-item">
+                            <div class="d-flex w-100 justify-content-between align-items-center">
+                                <h6 class="mb-1">
+                                    <a href="{{ url_for('view_lead', lead_id=contact.lead_id) }}" class="text-decoration-none">{{ contact.lead.name }}</a>
+                                </h6>
+                                
+                                {% set time_diff = (contact.scheduled_time - now()).total_seconds() // 60 %}  <!-- em minutos -->
+                                {% if time_diff < 60 %}
+                                    <span class="badge bg-danger">Em {{ time_diff|int }} minutos</span>
+                                {% elif time_diff < 1440 %}  <!-- menos de 24h -->
+                                    <span class="badge bg-warning">Em {{ (time_diff / 60)|int }} horas</span>
+                                {% elif time_diff < 10080 %}  <!-- menos de 7 dias -->
+                                    <span class="badge bg-info">Em {{ (time_diff / 1440)|int }} dias</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">{{ contact.scheduled_time.strftime('%d/%m/%Y %H:%M') }}</span>
+                                {% endif %}
+                            </div>
+                            <p class="mb-1"><i class="far fa-clock me-1"></i> {{ contact.scheduled_time.strftime('%d/%m/%Y %H:%M') }}</p>
+                            {% if contact.notes %}
+                            <small class="text-muted">{{ contact.notes|nl2br }}</small>
+                            {% endif %}
+                            <div class="mt-2">
+                                {% if contact.lead.phone %}
+                                <a href="{{ url_for('whatsapp_send', lead_id=contact.lead_id) }}" class="btn btn-sm btn-success" style="background-color: #25D366; border-color: #25D366;">
+                                    <i class="fab fa-whatsapp"></i> WhatsApp
+                                </a>
+                                {% endif %}
+                                <form action="{{ url_for('delete_scheduled_contact', contact_id=contact.id) }}" method="POST" class="d-inline">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Tem certeza que deseja excluir este agendamento?');">
+                                        <i class="fas fa-trash-alt"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="far fa-calendar-alt fa-3x text-muted mb-3"></i>
+                        <p>Não há contatos agendados para o futuro.</p>
+                        <a href="{{ url_for('schedule_contact') }}" class="btn btn-primary">
+                            <i class="far fa-calendar-plus me-2"></i>Agendar Contato
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Past Contacts Card -->
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0"><i class="fas fa-history me-2"></i>Histórico de Contatos</h5>
+                </div>
+                <div class="card-body p-0">
+                    {% if past_contacts %}
+                    <div class="list-group list-group-flush">
+                        {% for contact in past_contacts %}
+                        <div class="list-group-item {% if contact.is_notified %}bg-light{% endif %}">
+                            <div class="d-flex w-100 justify-content-between align-items-center">
+                                <h6 class="mb-1">
+                                    <a href="{{ url_for('view_lead', lead_id=contact.lead_id) }}" class="text-decoration-none">{{ contact.lead.name }}</a>
+                                </h6>
+                                {% if contact.is_notified %}
+                                <span class="badge bg-success">Realizado</span>
+                                {% else %}
+                                <span class="badge bg-danger">Pendente</span>
+                                {% endif %}
+                            </div>
+                            <p class="mb-1"><i class="far fa-clock me-1"></i> {{ contact.scheduled_time.strftime('%d/%m/%Y %H:%M') }}</p>
+                            {% if contact.notes %}
+                            <small class="text-muted">{{ contact.notes|nl2br }}</small>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-history fa-3x text-muted mb-3"></i>
+                        <p>Não há histórico de contatos anteriores.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

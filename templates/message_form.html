@@ -1,0 +1,114 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if is_scheduled %}Agendar{% else %}Enviar{% endif %} Lembrete - Leads CRM{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-header{% if is_scheduled %} bg-warning text-dark{% else %} bg-success text-white{% endif %}">
+                    <h4 class="mb-0">
+                        {% if is_scheduled %}
+                            <i class="far fa-clock me-2"></i>Agendar Lembrete
+                        {% else %}
+                            <i class="far fa-envelope me-2"></i>Enviar Lembrete
+                        {% endif %}
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{% if is_scheduled %}{{ url_for('schedule_message') }}{% else %}{{ url_for('send_message') }}{% endif %}">
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" id="is_bulk" name="is_bulk" {% if lead_id is none %}checked{% endif %}>
+                            <label class="form-check-label" for="is_bulk">
+                                Enviar para todos os leads (lembrete em massa)
+                            </label>
+                        </div>
+                        
+                        <div class="mb-3" id="lead_select_div" {% if lead_id is none %}style="display: none;"{% endif %}>
+                            <label for="lead_id" class="form-label">Selecionar Lead</label>
+                            <select class="form-select" id="lead_id" name="lead_id">
+                                <option value="">Escolha um lead...</option>
+                                {% for lead in leads %}
+                                <option value="{{ lead.id }}" {% if lead_id and lead_id|int == lead.id %}selected{% endif %}>
+                                    {{ lead.name }} ({{ lead.phone }})
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        {% if templates %}
+                        <div class="mb-3">
+                            <label for="template_select" class="form-label">Templates</label>
+                            <select class="form-select" id="template_select">
+                                <option value="">-- Selecione um template --</option>
+                                {% for template in templates %}
+                                <option value="{{ template.content }}">{{ template.name }}</option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text">Selecione um template de lembrete ou escreva seu próprio lembrete abaixo.</div>
+                        </div>
+                        {% endif %}
+                        
+                        <div class="mb-3">
+                            <label for="message" class="form-label">Lembrete</label>
+                            <textarea class="form-control" id="message" name="message" rows="5" required>{{ message_content }}</textarea>
+                            <div class="form-text d-flex justify-content-between">
+                                <span>Digite o texto do lembrete que será mostrado no sistema</span>
+                                <span id="char-counter">0 caracteres</span>
+                            </div>
+                        </div>
+                        
+                        {% if is_scheduled %}
+                        <div class="mb-3">
+                            <label for="scheduled_time" class="form-label">Data e Hora Agendada</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="far fa-calendar-alt"></i></span>
+                                <input type="datetime-local" class="form-control" id="scheduled_time" name="scheduled_time" required>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('leads') }}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>Voltar
+                            </a>
+                            <button type="submit" class="btn {% if is_scheduled %}btn-warning{% else %}btn-success{% endif %}">
+                                {% if is_scheduled %}
+                                    <i class="far fa-clock me-2"></i>Agendar Lembrete
+                                {% else %}
+                                    <i class="far fa-envelope me-2"></i>Enviar Agora
+                                {% endif %}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                <div class="card-footer text-body-secondary">
+                    <div class="row">
+                        <div class="col-md-6">
+                            {% if is_scheduled %}
+                                <a href="{{ url_for('send_message') }}">
+                                    <i class="far fa-envelope me-1"></i>Enviar Imediatamente
+                                </a>
+                            {% else %}
+                                <a href="{{ url_for('schedule_message') }}">
+                                    <i class="far fa-clock me-1"></i>Agendar Para Depois
+                                </a>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6 text-md-end">
+                            <a href="{{ url_for('scheduled_messages') }}">
+                                <i class="far fa-list-alt me-1"></i>Ver Lembretes Agendados
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/messages.js') }}"></script>
+{% endblock %}

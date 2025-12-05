@@ -1,0 +1,236 @@
+{% extends 'base.html' %}
+
+{% block title %}Leads - CRM{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1><i class="fas fa-address-book me-2"></i>Leads</h1>
+        <div>
+            <button type="button" class="btn btn-primary me-2" data-bs-toggle="modal" data-bs-target="#importLeadsModal">
+                <i class="fas fa-file-import me-2"></i>Importar Leads
+            </button>
+            <a href="{{ url_for('add_lead') }}" class="btn btn-success">
+                <i class="fas fa-plus me-2"></i>Adicionar Lead
+            </a>
+        </div>
+    </div>
+
+    <!-- Search and Filter -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form action="{{ url_for('search_leads') }}" method="GET" class="row g-3">
+                <div class="col-md-6">
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="fas fa-search"></i></span>
+                        <input type="text" class="form-control" name="query" placeholder="Buscar por nome, telefone ou email" value="{{ query if query else '' }}">
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="far fa-calendar-alt"></i></span>
+                        <input type="date" class="form-control" name="date" value="{{ date if date else '' }}">
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary w-100">Buscar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Leads com contatos agendados para hoje -->
+    {% if upcoming_leads %}
+    <div class="card mb-4">
+        <div class="card-header bg-warning text-white">
+            <h5 class="mb-0"><i class="far fa-calendar-check me-2"></i>Contatos Agendados para Hoje</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Nome</th>
+                            <th>Telefone</th>
+                            <th>Email</th>
+                            <th>Status</th>
+                            <th>Horário</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for lead in upcoming_leads %}
+                        <tr>
+                            <td><a href="{{ url_for('view_lead', lead_id=lead.id) }}">{{ lead.name }}</a></td>
+                            <td>{{ lead.phone }}</td>
+                            <td>{{ lead.email or '-' }}</td>
+                            <td>
+                                {% if lead.status == 'frio' %}
+                                    <span class="badge bg-primary">Frio</span>
+                                {% elif lead.status == 'quente' %}
+                                    <span class="badge bg-warning">Quente</span>
+                                {% elif lead.status == 'fervendo' %}
+                                    <span class="badge bg-danger">Fervendo</span>
+                                {% elif lead.status == 'cliente' %}
+                                    <span class="badge bg-success">Cliente</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if lead.next_contact_date < now() %}
+                                <span class="badge bg-danger">Atrasado</span>
+                                {% else %}
+                                <span class="badge bg-warning">Hoje</span>
+                                {% endif %}
+                                {{ lead.next_contact_date.strftime('%H:%M') }}
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{{ url_for('view_lead', lead_id=lead.id) }}" class="btn btn-primary">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    <a href="{{ url_for('send_message', lead_id=lead.id) }}" class="btn btn-success">
+                                        <i class="far fa-envelope"></i>
+                                    </a>
+                                    <a href="{{ url_for('whatsapp_send', lead_id=lead.id) }}" class="btn btn-success" style="background-color: #25D366; border-color: #25D366;">
+                                        <i class="fab fa-whatsapp"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Todos os Leads -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="fas fa-address-book me-2"></i>Todos os Leads</h5>
+        </div>
+        <div class="card-body">
+            {% if leads %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Nome</th>
+                                <th>Telefone</th>
+                                <th>Email</th>
+                                <th>Status</th>
+                                <th>Próximo Contato</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for lead in leads %}
+                            <tr>
+                                <td>
+                                    <a href="{{ url_for('view_lead', lead_id=lead.id) }}">
+                                        {{ lead.name }}
+                                    </a>
+                                </td>
+                                <td>{{ lead.phone }}</td>
+                                <td>{{ lead.email }}</td>
+                                <td>
+                                    {% if lead.status == 'frio' %}
+                                        <span class="badge bg-primary">Frio</span>
+                                        <form action="{{ url_for('advance_lead_status', lead_id=lead.id) }}" method="POST" class="d-inline ms-1">
+                                            <button type="submit" class="btn btn-sm btn-outline-warning" title="Avançar para Quente">
+                                                <i class="fas fa-arrow-up"></i>
+                                            </button>
+                                        </form>
+                                    {% elif lead.status == 'quente' %}
+                                        <span class="badge bg-warning">Quente</span>
+                                        <form action="{{ url_for('advance_lead_status', lead_id=lead.id) }}" method="POST" class="d-inline ms-1">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Avançar para Fervendo">
+                                                <i class="fas fa-arrow-up"></i>
+                                            </button>
+                                        </form>
+                                    {% elif lead.status == 'fervendo' %}
+                                        <span class="badge bg-danger">Fervendo</span>
+                                        <form action="{{ url_for('advance_lead_status', lead_id=lead.id) }}" method="POST" class="d-inline ms-1">
+                                            <button type="submit" class="btn btn-sm btn-outline-success" title="Converter em Cliente">
+                                                <i class="fas fa-check"></i>
+                                            </button>
+                                        </form>
+                                    {% elif lead.status == 'cliente' %}
+                                        <span class="badge bg-success">Cliente</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ lead.next_contact_date.strftime('%Y-%m-%d %H:%M') if lead.next_contact_date else 'Não agendado' }}</td>
+                                <td>
+                                    <div class="btn-group" role="group">
+                                        <a href="{{ url_for('send_message', lead_id=lead.id) }}" class="btn btn-sm btn-outline-success" title="Enviar Lembrete">
+                                            <i class="far fa-envelope"></i>
+                                        </a>
+                                        <a href="{{ url_for('whatsapp_send', lead_id=lead.id) }}" class="btn btn-sm" title="Enviar WhatsApp" style="color: #25D366; border-color: #25D366;">
+                                            <i class="fab fa-whatsapp"></i>
+                                        </a>
+                                        <a href="{{ url_for('view_lead', lead_id=lead.id) }}" class="btn btn-sm btn-outline-primary" title="Ver Detalhes">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="{{ url_for('edit_lead', lead_id=lead.id) }}" class="btn btn-sm btn-outline-warning" title="Editar">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-address-book fa-3x text-muted mb-3"></i>
+                    <h5>Nenhum Lead Encontrado</h5>
+                    <p class="mb-0">Comece adicionando seu primeiro lead</p>
+                    <a href="{{ url_for('add_lead') }}" class="btn btn-primary mt-3">
+                        <i class="fas fa-plus me-2"></i>Adicionar Lead
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Importação de Leads -->
+<div class="modal fade" id="importLeadsModal" tabindex="-1" aria-labelledby="importLeadsModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="importLeadsModalLabel">Importar Leads de Excel</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <form action="{{ url_for('import_leads') }}" method="POST" enctype="multipart/form-data">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="excelFile" class="form-label">Selecione o arquivo Excel:</label>
+                        <input type="file" class="form-control" id="excelFile" name="file" accept=".xlsx,.xls" required>
+                    </div>
+                    <div class="alert alert-info">
+                        <h6 class="alert-heading">Requisitos do Arquivo:</h6>
+                        <ul class="mb-0">
+                            <li>Formato .xlsx ou .xls</li>
+                            <li>Obrigatório: Colunas para Nome e Telefone</li>
+                            <li>Opcionais: Colunas para Email e Anotações</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-file-import me-2"></i>Importar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/leads.js') }}"></script>
+{% endblock %}

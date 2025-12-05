@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block title %}Conectar WhatsApp{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fab fa-whatsapp me-2"></i>Conectar ao WhatsApp</h5>
+                </div>
+                <div class="card-body">
+                    <div class="text-center mb-4">
+                        <div class="d-inline-block p-3 border rounded mb-3">
+                            <i class="fab fa-whatsapp fa-5x text-success"></i>
+                        </div>
+                        <h4>Conectar ao WhatsApp</h4>
+                        <p class="lead">Siga as instruções abaixo para conectar o CRM ao seu WhatsApp</p>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <h5 class="alert-heading">Como funciona:</h5>
+                        <ol class="mb-0">
+                            <li>Ao clicar em "Enviar Mensagem" na página de detalhes de um lead, você será redirecionado para o WhatsApp Web</li>
+                            <li>O WhatsApp Web abrirá com o número do lead já preenchido</li>
+                            <li>Digite sua mensagem e envie diretamente pelo WhatsApp Web</li>
+                        </ol>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <h5>Benefícios:</h5>
+                        <ul>
+                            <li>Envio direto de mensagens para seus leads</li>
+                            <li>Sem necessidade de adicionar contatos manualmente</li>
+                            <li>Acesso ao histórico de conversas no próprio WhatsApp</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="alert alert-warning">
+                        <h5 class="alert-heading">Importante:</h5>
+                        <ul class="mb-0">
+                            <li>Você deve estar logado no WhatsApp Web no seu navegador</li>
+                            <li>Certifique-se de que os números de telefone dos leads incluam o código do país (Ex: +55 para Brasil)</li>
+                            <li>Seu navegador pode solicitar permissão para abrir o WhatsApp Web</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <a href="{{ url_for('leads') }}" class="btn btn-primary">
+                        <i class="fas fa-arrow-left me-2"></i>Voltar para Leads
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

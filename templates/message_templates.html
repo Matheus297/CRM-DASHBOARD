@@ -1,0 +1,84 @@
+{% extends 'base.html' %}
+
+{% block title %}Templates de Lembretes - Leads CRM{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1><i class="far fa-copy me-2"></i>Templates de Lembretes</h1>
+        <a href="{{ url_for('add_template') }}" class="btn btn-primary">
+            <i class="fas fa-plus me-2"></i>Adicionar Template
+        </a>
+    </div>
+
+    <div class="card">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">Templates Disponíveis</h5>
+        </div>
+        <div class="card-body">
+            {% if templates %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Nome</th>
+                            <th>Conteúdo</th>
+                            <th>Criado em</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for template in templates %}
+                        <tr>
+                            <td>{{ template.name }}</td>
+                            <td class="text-truncate" style="max-width: 300px;">{{ template.content }}</td>
+                            <td>{{ template.created_at.strftime('%d/%m/%Y %H:%M') }}</td>
+                            <td>
+                                <div class="btn-group">
+                                    <a href="{{ url_for('use_template', template_id=template.id) }}" class="btn btn-sm btn-success">
+                                        <i class="far fa-paper-plane"></i> Usar
+                                    </a>
+                                    <a href="{{ url_for('edit_template', template_id=template.id) }}" class="btn btn-sm btn-primary">
+                                        <i class="far fa-edit"></i> Editar
+                                    </a>
+                                    <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal{{ template.id }}">
+                                        <i class="far fa-trash-alt"></i> Excluir
+                                    </button>
+                                </div>
+
+                                <!-- Delete Modal -->
+                                <div class="modal fade" id="deleteModal{{ template.id }}" tabindex="-1" aria-labelledby="deleteModalLabel{{ template.id }}" aria-hidden="true">
+                                    <div class="modal-dialog">
+                                        <div class="modal-content">
+                                            <div class="modal-header bg-danger text-white">
+                                                <h5 class="modal-title" id="deleteModalLabel{{ template.id }}">Confirmar Exclusão</h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <p>Tem certeza que deseja excluir o template <strong>{{ template.name }}</strong>?</p>
+                                                <p class="text-danger"><small>Esta ação não pode ser desfeita.</small></p>
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                                <form action="{{ url_for('delete_template', template_id=template.id) }}" method="POST" class="d-inline">
+                                                    <button type="submit" class="btn btn-danger">Excluir</button>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i> Você ainda não tem nenhum template de lembrete. Adicione templates para facilitar a criação de lembretes frequentes.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,175 @@
+{% extends 'base.html' %}
+
+{% block title %}Lembretes Agendados - Leads CRM{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1><i class="far fa-clock me-2"></i>Lembretes Agendados</h1>
+        <a href="{{ url_for('schedule_message') }}" class="btn btn-primary">
+            <i class="fas fa-plus me-2"></i>Novo Lembrete
+        </a>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">Lembretes de Mensagens Pendentes</h5>
+        </div>
+        <div class="card-body">
+            {% if messages %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Destinatário</th>
+                                <th>Lembrete</th>
+                                <th>Data Agendada</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for message in messages %}
+                            <tr>
+                                <td>
+                                    {% if message.is_bulk %}
+                                        <span class="badge bg-info">Todos os Leads</span>
+                                    {% else %}
+                                        <a href="{{ url_for('view_lead', lead_id=message.lead.id) }}">
+                                            {{ message.lead.name }}
+                                        </a>
+                                    {% endif %}
+                                </td>
+                                <td>{{ message.message|truncate(50) }}</td>
+                                <td>{{ message.scheduled_time.strftime('%Y-%m-%d %H:%M') }}</td>
+                                <td>
+                                    <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal-{{ message.id }}">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            
+                            <!-- Delete Modal for this message -->
+                            <div class="modal fade" id="deleteModal-{{ message.id }}" tabindex="-1" aria-hidden="true">
+                                <div class="modal-dialog">
+                                    <div class="modal-content">
+                                        <div class="modal-header bg-danger text-white">
+                                            <h5 class="modal-title">Confirmar Exclusão</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <p>Tem certeza que deseja excluir este lembrete agendado?</p>
+                                            <div class="card bg-light">
+                                                <div class="card-body">
+                                                    <p class="mb-1"><strong>Para:</strong> 
+                                                        {% if message.is_bulk %}
+                                                            Todos os Leads
+                                                        {% else %}
+                                                            {{ message.lead.name }}
+                                                        {% endif %}
+                                                    </p>
+                                                    <p class="mb-1"><strong>Data:</strong> {{ message.scheduled_time.strftime('%Y-%m-%d %H:%M') }}</p>
+                                                    <p class="mb-0"><strong>Lembrete:</strong> {{ message.message|truncate(100) }}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                            <form action="{{ url_for('delete_scheduled_message', message_id=message.id) }}" method="POST">
+                                                <button type="submit" class="btn btn-danger">Excluir</button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-center py-5">
+                    <i class="far fa-clock fa-3x text-muted mb-3"></i>
+                    <h5>Nenhum Lembrete Agendado</h5>
+                    <p class="mb-0">Você não tem lembretes agendados no momento</p>
+                    <a href="{{ url_for('schedule_message') }}" class="btn btn-primary mt-3">
+                        <i class="fas fa-plus me-2"></i>Agendar Lembrete
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">Contatos Agendados</h5>
+        </div>
+        <div class="card-body">
+            {% if contacts %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Lead</th>
+                                <th>Anotações</th>
+                                <th>Data Agendada</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for contact in contacts %}
+                            <tr>
+                                <td>
+                                    <a href="{{ url_for('view_lead', lead_id=contact.lead.id) }}">
+                                        {{ contact.lead.name }}
+                                    </a>
+                                </td>
+                                <td>{{ contact.notes|truncate(50) }}</td>
+                                <td>{{ contact.scheduled_time.strftime('%Y-%m-%d %H:%M') }}</td>
+                                <td>
+                                    <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#deleteContactModal-{{ contact.id }}">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            
+                            <!-- Delete Modal for this contact -->
+                            <div class="modal fade" id="deleteContactModal-{{ contact.id }}" tabindex="-1" aria-hidden="true">
+                                <div class="modal-dialog">
+                                    <div class="modal-content">
+                                        <div class="modal-header bg-danger text-white">
+                                            <h5 class="modal-title">Confirmar Exclusão</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <p>Tem certeza que deseja excluir este agendamento de contato?</p>
+                                            <div class="card bg-light">
+                                                <div class="card-body">
+                                                    <p class="mb-1"><strong>Lead:</strong> {{ contact.lead.name }}</p>
+                                                    <p class="mb-1"><strong>Data:</strong> {{ contact.scheduled_time.strftime('%Y-%m-%d %H:%M') }}</p>
+                                                    <p class="mb-0"><strong>Anotações:</strong> {{ contact.notes|truncate(100) }}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                            <form action="{{ url_for('delete_scheduled_contact', contact_id=contact.id) }}" method="POST">
+                                                <button type="submit" class="btn btn-danger">Excluir</button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-center py-5">
+                    <i class="far fa-calendar-check fa-3x text-muted mb-3"></i>
+                    <h5>Nenhum Contato Agendado</h5>
+                    <p class="mb-0">Você não tem contatos agendados no momento</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
