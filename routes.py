@@ -4,13 +4,12 @@ from flask import request, jsonify, send_from_directory
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.utils import secure_filename
 from sqlalchemy import desc, asc
-import pandas as pd
-import pytz
+from zoneinfo import ZoneInfo
 from app import db
 from models import User, Lead, ScheduledMessage, ScheduledContact, MessageTemplate
 
 # Brazil timezone
-SAO_PAULO_TZ = pytz.timezone('America/Sao_Paulo')
+SAO_PAULO_TZ = ZoneInfo('America/Sao_Paulo')
 
 def register_routes(app):
     
