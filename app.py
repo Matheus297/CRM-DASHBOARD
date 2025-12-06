@@ -5,6 +5,7 @@ from flask_login import LoginManager
 from sqlalchemy.orm import DeclarativeBase
 from werkzeug.middleware.proxy_fix import ProxyFix
 from markupsafe import Markup
+from flask_cors import CORS
 
 class Base(DeclarativeBase):
     pass
@@ -14,7 +15,7 @@ db = SQLAlchemy(model_class=Base)
 login_manager = LoginManager()
 
 def create_app():
-    app = Flask(__name__)
+    app = Flask(__name__, static_folder='frontend/dist/assets', static_url_path='/assets')
     
     # Configuration
     app.secret_key = os.environ.get("SESSION_SECRET", "dev-secret-key")
@@ -29,27 +30,11 @@ def create_app():
     
     # Initialize extensions
     db.init_app(app)
+    CORS(app)
     login_manager.init_app(app)
     login_manager.login_view = 'login'
     login_manager.login_message = 'Faça login para acessar esta página.'
     login_manager.login_message_category = 'info'
-    
-    # Template filters
-    @app.template_filter('nl2br')
-    def nl2br(value):
-        if value is None:
-            return ''
-        return Markup(value.replace('\n', '<br>'))
-    
-    # Context processors
-    @app.context_processor
-    def utility_processor():
-        return dict(
-            enumerate=enumerate,
-            len=len,
-            str=str,
-            int=int
-        )
     
     return app
 

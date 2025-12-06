@@ -1,6 +1,6 @@
 import os
 from datetime import datetime, timedelta
-from flask import render_template, request, redirect, url_for, flash, jsonify, send_from_directory
+from flask import request, jsonify, send_from_directory
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.utils import secure_filename
 from sqlalchemy import desc, asc
@@ -15,84 +15,90 @@ SAO_PAULO_TZ = pytz.timezone('America/Sao_Paulo')
 def register_routes(app):
     
     @app.route('/')
-    def index():
+    @app.route('/<path:path>')
+    def serve(path=None):
+        if path and path.startswith('api'):
+            return jsonify({'error': 'Not found'}), 404
+        return send_from_directory('frontend/dist', 'index.html')
+
+    @app.route('/api/check-auth')
+    def check_auth():
         if current_user.is_authenticated:
-            return redirect(url_for('dashboard'))
-        return redirect(url_for('login'))
-    
-    @app.route('/login', methods=['GET', 'POST'])
+            return jsonify({
+                'authenticated': True,
+                'user': {
+                    'id': current_user.id,
+                    'username': current_user.username,
+                    'email': current_user.email
+                }
+            })
+        return jsonify({'authenticated': False}), 401
+
+    @app.route('/api/login', methods=['POST'])
     def login():
-        if request.method == 'POST':
-            username = request.form['username']
-            password = request.form['password']
-            
-            user = User.query.filter_by(username=username).first()
-            
-            if user and user.check_password(password):
-                login_user(user)
-                flash('Login realizado com sucesso!', 'success')
-                return redirect(url_for('dashboard'))
-            else:
-                flash('Credenciais inválidas. Tente novamente.', 'error')
+        data = request.get_json()
+        username = data.get('username')
+        password = data.get('password')
         
-        return render_template('login.html')
+        user = User.query.filter_by(username=username).first()
+        
+        if user and user.check_password(password):
+            login_user(user)
+            return jsonify({
+                'message': 'Login realizado com sucesso!',
+                'user': {
+                    'id': user.id,
+                    'username': user.username
+                }
+            })
+        else:
+            return jsonify({'error': 'Credenciais inválidas.'}), 401
     
-    @app.route('/register', methods=['GET', 'POST'])
+    @app.route('/api/register', methods=['POST'])
     def register():
-        if request.method == 'POST':
-            username = request.form['username']
-            email = request.form['email']
-            password = request.form['password']
-            confirm_password = request.form['confirm_password']
-            phone_number = request.form.get('whatsapp_number', '')
-            
-            # Validation
-            if password != confirm_password:
-                flash('As senhas não coincidem.', 'error')
-                return render_template('register.html')
-            
-            if User.query.filter_by(username=username).first():
-                flash('Nome de usuário já existe.', 'error')
-                return render_template('register.html')
-            
-            if User.query.filter_by(email=email).first():
-                flash('Email já cadastrado.', 'error')
-                return render_template('register.html')
-            
-            # Create new user
-            user = User(
-                username=username,
-                email=email,
-                phone_number=phone_number
-            )
-            user.set_password(password)
-            
-            db.session.add(user)
-            db.session.commit()
-            
-            flash('Conta criada com sucesso! Faça login para continuar.', 'success')
-            return redirect(url_for('login'))
+        data = request.get_json()
+        username = data.get('username')
+        email = data.get('email')
+        password = data.get('password')
+        confirm_password = data.get('confirm_password')
+        phone_number = data.get('whatsapp_number', '')
         
-        return render_template('register.html')
+        if password != confirm_password:
+            return jsonify({'error': 'As senhas não coincidem.'}), 400
+        
+        if User.query.filter_by(username=username).first():
+            return jsonify({'error': 'Nome de usuário já existe.'}), 400
+        
+        if User.query.filter_by(email=email).first():
+            return jsonify({'error': 'Email já cadastrado.'}), 400
+        
+        user = User(
+            username=username,
+            email=email,
+            phone_number=phone_number
+        )
+        user.set_password(password)
+        
+        db.session.add(user)
+        db.session.commit()
+        
+        return jsonify({'message': 'Conta criada com sucesso!'})
     
-    @app.route('/logout')
+    @app.route('/api/logout', methods=['POST'])
     @login_required
     def logout():
         logout_user()
-        flash('Logout realizado com sucesso!', 'success')
-        return redirect(url_for('login'))
+        return jsonify({'message': 'Logout realizado com sucesso!'})
     
-    @app.route('/dashboard')
+    @app.route('/api/dashboard')
     @login_required
     def dashboard():
-        # Get lead statistics
         total_leads = Lead.query.filter_by(user_id=current_user.id).count()
         leads_frio = Lead.query.filter_by(user_id=current_user.id, status='frio').count()
         leads_quente = Lead.query.filter_by(user_id=current_user.id, status='quente').count()
         leads_fervendo = Lead.query.filter_by(user_id=current_user.id, status='fervendo').count()
         leads_cliente = Lead.query.filter_by(user_id=current_user.id, status='cliente').count()
         
-        # Get upcoming contacts
         today = datetime.now(SAO_PAULO_TZ).date()
         upcoming_contacts = ScheduledContact.query.filter(
             ScheduledContact.user_id == current_user.id,
@@ -100,26 +106,36 @@ def register_routes(app):
             ScheduledContact.is_notified == False
         ).order_by(ScheduledContact.scheduled_time).limit(5).all()
         
-        # Get recent leads
         recent_leads = Lead.query.filter_by(user_id=current_user.id).order_by(desc(Lead.created_at)).limit(5).all()
         
-        return render_template('dashboard.html', 
-                             total_leads=total_leads,
-                             leads_frio=leads_frio,
-                             leads_quente=leads_quente,
-                             leads_fervendo=leads_fervendo,
-                             leads_cliente=leads_cliente,
-                             upcoming_contacts=upcoming_contacts,
-                             recent_leads=recent_leads)
+        return jsonify({
+            'stats': {
+                'total': total_leads,
+                'frio': leads_frio,
+                'quente': leads_quente,
+                'fervendo': leads_fervendo,
+                'cliente': leads_cliente
+            },
+            'upcoming_contacts': [{
+                'id': c.id,
+                'lead_name': c.lead.name,
+                'scheduled_time': c.scheduled_time.isoformat(),
+                'notes': c.notes
+            } for c in upcoming_contacts],
+            'recent_leads': [{
+                'id': l.id,
+                'name': l.name,
+                'status': l.status,
+                'created_at': l.created_at.isoformat()
+            } for l in recent_leads]
+        })
     
-    @app.route('/leads')
+    @app.route('/api/leads', methods=['GET'])
     @login_required
     def leads():
-        # Get filter parameters
         status_filter = request.args.get('status', '')
         search_query = request.args.get('search', '')
         
-        # Build query
         query = Lead.query.filter_by(user_id=current_user.id)
         
         if status_filter:
@@ -134,292 +150,238 @@ def register_routes(app):
         
         leads = query.order_by(desc(Lead.updated_at)).all()
         
-        return render_template('leads.html', leads=leads, status_filter=status_filter, search_query=search_query)
-    
-    @app.route('/leads/add', methods=['GET', 'POST'])
+        return jsonify([{
+            'id': l.id,
+            'name': l.name,
+            'phone': l.phone,
+            'email': l.email,
+            'status': l.status,
+            'notes': l.notes,
+            'next_contact_date': l.next_contact_date.isoformat() if l.next_contact_date else None,
+            'updated_at': l.updated_at.isoformat()
+        } for l in leads])
+
+    @app.route('/api/leads', methods=['POST'])
     @login_required
     def add_lead():
-        if request.method == 'POST':
-            name = request.form['name']
-            phone = request.form['phone']
-            email = request.form.get('email', '')
-            notes = request.form.get('notes', '')
-            next_contact_date = request.form.get('next_contact_date', '')
-            
-            # Parse next contact date
-            next_contact = None
-            if next_contact_date:
-                try:
-                    next_contact = datetime.strptime(next_contact_date, '%Y-%m-%d')
-                except ValueError:
-                    flash('Data de próximo contato inválida.', 'error')
-                    return render_template('lead_form.html')
-            
-            # Create new lead
-            lead = Lead(
-                name=name,
-                phone=phone,
-                email=email,
-                notes=notes,
-                next_contact_date=next_contact,
-                user_id=current_user.id
-            )
-            
-            db.session.add(lead)
-            db.session.commit()
-            
-            flash('Lead adicionado com sucesso!', 'success')
-            return redirect(url_for('leads'))
+        data = request.get_json()
+        name = data.get('name')
+        phone = data.get('phone')
+        email = data.get('email', '')
+        notes = data.get('notes', '')
+        next_contact_date = data.get('next_contact_date', '')
         
-        return render_template('lead_form.html')
-    
-    @app.route('/leads/<int:lead_id>')
+        next_contact = None
+        if next_contact_date:
+            try:
+                next_contact = datetime.strptime(next_contact_date, '%Y-%m-%d')
+            except ValueError:
+                return jsonify({'error': 'Data de próximo contato inválida.'}), 400
+        
+        lead = Lead(
+            name=name,
+            phone=phone,
+            email=email,
+            notes=notes,
+            next_contact_date=next_contact,
+            user_id=current_user.id
+        )
+        
+        db.session.add(lead)
+        db.session.commit()
+        
+        return jsonify({'message': 'Lead adicionado com sucesso!', 'lead': {'id': lead.id}})
+
+    @app.route('/api/leads/<int:lead_id>', methods=['GET'])
     @login_required
     def view_lead(lead_id):
         lead = Lead.query.filter_by(id=lead_id, user_id=current_user.id).first_or_404()
-        return render_template('lead_detail.html', lead=lead)
-    
-    @app.route('/leads/<int:lead_id>/edit', methods=['GET', 'POST'])
+        return jsonify({
+            'id': lead.id,
+            'name': lead.name,
+            'phone': lead.phone,
+            'email': lead.email,
+            'status': lead.status,
+            'notes': lead.notes,
+            'next_contact_date': lead.next_contact_date.isoformat() if lead.next_contact_date else None,
+            'created_at': lead.created_at.isoformat(),
+            'updated_at': lead.updated_at.isoformat()
+        })
+
+    @app.route('/api/leads/<int:lead_id>', methods=['PUT'])
     @login_required
-    def edit_lead(lead_id):
+    def update_lead(lead_id):
         lead = Lead.query.filter_by(id=lead_id, user_id=current_user.id).first_or_404()
+        data = request.get_json()
         
-        if request.method == 'POST':
-            lead.name = request.form['name']
-            lead.phone = request.form['phone']
-            lead.email = request.form.get('email', '')
-            lead.notes = request.form.get('notes', '')
-            lead.status = request.form.get('status', 'frio')
-            
-            next_contact_date = request.form.get('next_contact_date', '')
-            if next_contact_date:
-                try:
-                    lead.next_contact_date = datetime.strptime(next_contact_date, '%Y-%m-%d')
-                except ValueError:
-                    flash('Data de próximo contato inválida.', 'error')
-                    return render_template('lead_form.html', lead=lead)
-            else:
-                lead.next_contact_date = None
-            
-            lead.updated_at = datetime.utcnow()
-            db.session.commit()
-            
-            flash('Lead atualizado com sucesso!', 'success')
-            return redirect(url_for('view_lead', lead_id=lead.id))
+        lead.name = data.get('name', lead.name)
+        lead.phone = data.get('phone', lead.phone)
+        lead.email = data.get('email', lead.email)
+        lead.notes = data.get('notes', lead.notes)
+        lead.status = data.get('status', lead.status)
         
-        return render_template('lead_form.html', lead=lead)
-    
-    @app.route('/leads/<int:lead_id>/delete', methods=['POST'])
+        next_contact_date = data.get('next_contact_date', '')
+        if next_contact_date:
+            try:
+                lead.next_contact_date = datetime.strptime(next_contact_date, '%Y-%m-%d')
+            except ValueError:
+                return jsonify({'error': 'Data inválida'}), 400
+        else:
+            lead.next_contact_date = None
+            
+        lead.updated_at = datetime.utcnow()
+        db.session.commit()
+        
+        return jsonify({'message': 'Lead atualizado com sucesso!'})
+
+    @app.route('/api/leads/<int:lead_id>', methods=['DELETE'])
     @login_required
     def delete_lead(lead_id):
         lead = Lead.query.filter_by(id=lead_id, user_id=current_user.id).first_or_404()
         
-        # Delete related scheduled messages and contacts
         ScheduledMessage.query.filter_by(lead_id=lead_id).delete()
         ScheduledContact.query.filter_by(lead_id=lead_id).delete()
         
         db.session.delete(lead)
         db.session.commit()
         
-        flash('Lead removido com sucesso!', 'success')
-        return redirect(url_for('leads'))
-    
-    @app.route('/leads/<int:lead_id>/advance_status', methods=['POST'])
-    @login_required
-    def advance_lead_status(lead_id):
-        lead = Lead.query.filter_by(id=lead_id, user_id=current_user.id).first_or_404()
-        
-        status_progression = {
-            'frio': 'quente',
-            'quente': 'fervendo',
-            'fervendo': 'cliente'
-        }
-        
-        if lead.status in status_progression:
-            lead.status = status_progression[lead.status]
-            lead.updated_at = datetime.utcnow()
-            db.session.commit()
-            flash(f'Status do lead alterado para {lead.status}!', 'success')
-        
-        return redirect(url_for('view_lead', lead_id=lead.id))
-    
-    @app.route('/leads/import', methods=['GET', 'POST'])
-    @login_required
-    def import_leads():
-        if request.method == 'POST':
-            if 'file' not in request.files:
-                flash('Nenhum arquivo selecionado.', 'error')
-                return redirect(request.url)
-            
-            file = request.files['file']
-            if file.filename == '':
-                flash('Nenhum arquivo selecionado.', 'error')
-                return redirect(request.url)
-            
-            if file and file.filename.endswith(('.xlsx', '.xls')):
-                try:
-                    # Read Excel file
-                    df = pd.read_excel(file)
-                    
-                    # Check required columns
-                    required_columns = ['nome', 'telefone']
-                    missing_columns = [col for col in required_columns if col not in df.columns]
-                    
-                    if missing_columns:
-                        flash(f'Colunas obrigatórias não encontradas: {", ".join(missing_columns)}', 'error')
-                        return redirect(request.url)
-                    
-                    # Import leads
-                    imported_count = 0
-                    for index, row in df.iterrows():
-                        try:
-                            lead = Lead(
-                                name=str(row['nome']),
-                                phone=str(row['telefone']),
-                                email=str(row.get('email', '')),
-                                notes=str(row.get('observacoes', '')),
-                                user_id=current_user.id
-                            )
-                            db.session.add(lead)
-                            imported_count += 1
-                        except Exception as e:
-                            print(f"Erro ao importar linha {index + 1}: {str(e)}")
-                            continue
-                    
-                    db.session.commit()
-                    flash(f'{imported_count} leads importados com sucesso!', 'success')
-                    return redirect(url_for('leads'))
-                    
-                except Exception as e:
-                    flash(f'Erro ao processar arquivo: {str(e)}', 'error')
-                    return redirect(request.url)
-            else:
-                flash('Apenas arquivos Excel (.xlsx, .xls) são aceitos.', 'error')
-                return redirect(request.url)
-        
-        return render_template('import_leads.html')
-    
-    @app.route('/templates')
-    @login_required
-    def message_templates():
-        templates = MessageTemplate.query.filter_by(user_id=current_user.id).order_by(desc(MessageTemplate.created_at)).all()
-        return render_template('message_templates.html', templates=templates)
-    
-    @app.route('/templates/add', methods=['GET', 'POST'])
-    @login_required
-    def add_template():
-        if request.method == 'POST':
-            name = request.form['name']
-            content = request.form['content']
-            
-            template = MessageTemplate(
-                name=name,
-                content=content,
-                user_id=current_user.id
-            )
-            
-            db.session.add(template)
-            db.session.commit()
-            
-            flash('Template criado com sucesso!', 'success')
-            return redirect(url_for('message_templates'))
-        
-        return render_template('template_form.html')
-    
-    @app.route('/templates/<int:template_id>/edit', methods=['GET', 'POST'])
-    @login_required
-    def edit_template(template_id):
-        template = MessageTemplate.query.filter_by(id=template_id, user_id=current_user.id).first_or_404()
-        
-        if request.method == 'POST':
-            template.name = request.form['name']
-            template.content = request.form['content']
-            template.updated_at = datetime.utcnow()
-            
-            db.session.commit()
-            
-            flash('Template atualizado com sucesso!', 'success')
-            return redirect(url_for('message_templates'))
-        
-        return render_template('template_form.html', template=template)
-    
-    @app.route('/templates/<int:template_id>/delete', methods=['POST'])
-    @login_required
-    def delete_template(template_id):
-        template = MessageTemplate.query.filter_by(id=template_id, user_id=current_user.id).first_or_404()
-        
-        db.session.delete(template)
-        db.session.commit()
-        
-        flash('Template removido com sucesso!', 'success')
-        return redirect(url_for('message_templates'))
-    
-    @app.route('/scheduled-contacts')
-    @login_required
-    def scheduled_contacts():
-        contacts = ScheduledContact.query.filter_by(user_id=current_user.id).order_by(asc(ScheduledContact.scheduled_time)).all()
-        return render_template('scheduled_contacts.html', contacts=contacts)
-    
-    @app.route('/schedule-contact', methods=['GET', 'POST'])
+        return jsonify({'message': 'Lead removido com sucesso!'})
+
+    @app.route('/api/schedule-contact', methods=['POST'])
     @login_required
     def schedule_contact():
-        if request.method == 'POST':
-            lead_id = request.form['lead_id']
-            scheduled_date = request.form['scheduled_date']
-            scheduled_time = request.form['scheduled_time']
-            notes = request.form.get('notes', '')
+        data = request.get_json()
+        lead_id = data.get('lead_id')
+        scheduled_time_str = data.get('scheduled_time')
+        notes = data.get('notes', '')
+        
+        if not lead_id or not scheduled_time_str:
+            return jsonify({'error': 'Lead e data/hora são obrigatórios.'}), 400
             
-            # Combine date and time
+        try:
+            # Expecting ISO format or similar
+            # If coming from datetime-local input, it might be 'YYYY-MM-DDThh:mm'
+            scheduled_time = datetime.strptime(scheduled_time_str, '%Y-%m-%dT%H:%M')
+        except ValueError:
             try:
-                scheduled_datetime = datetime.strptime(f"{scheduled_date} {scheduled_time}", '%Y-%m-%d %H:%M')
+                # Try with seconds if present
+                scheduled_time = datetime.strptime(scheduled_time_str, '%Y-%m-%dT%H:%M:%S')
             except ValueError:
-                flash('Data e hora inválidas.', 'error')
-                leads = Lead.query.filter_by(user_id=current_user.id).all()
-                return render_template('contact_schedule_form.html', leads=leads)
-            
-            # Create scheduled contact
-            contact = ScheduledContact(
-                lead_id=lead_id,
-                scheduled_time=scheduled_datetime,
-                notes=notes,
-                user_id=current_user.id
-            )
-            
-            db.session.add(contact)
-            db.session.commit()
-            
-            flash('Contato agendado com sucesso!', 'success')
-            return redirect(url_for('scheduled_contacts'))
+                return jsonify({'error': 'Formato de data/hora inválido.'}), 400
         
-        leads = Lead.query.filter_by(user_id=current_user.id).all()
-        return render_template('contact_schedule_form.html', leads=leads)
-    
-    @app.route('/scheduled-contacts/<int:contact_id>/delete', methods=['POST'])
-    @login_required
-    def delete_scheduled_contact(contact_id):
-        contact = ScheduledContact.query.filter_by(id=contact_id, user_id=current_user.id).first_or_404()
+        contact = ScheduledContact(
+            lead_id=lead_id,
+            scheduled_time=scheduled_time,
+            notes=notes,
+            user_id=current_user.id
+        )
         
-        db.session.delete(contact)
+        db.session.add(contact)
         db.session.commit()
         
-        flash('Contato agendado removido com sucesso!', 'success')
-        return redirect(url_for('scheduled_contacts'))
-    
-    @app.route('/whatsapp-bulk')
+        return jsonify({'message': 'Contato agendado com sucesso!'})
+
+    @app.route('/api/scheduled-contacts', methods=['GET'])
     @login_required
-    def whatsapp_bulk():
-        leads = Lead.query.filter_by(user_id=current_user.id).all()
-        templates = MessageTemplate.query.filter_by(user_id=current_user.id).all()
-        return render_template('whatsapp_bulk_send.html', leads=leads, templates=templates)
-    
-    @app.route('/whatsapp/send/<int:lead_id>')
+    def get_scheduled_contacts():
+        contacts = ScheduledContact.query.filter_by(user_id=current_user.id).order_by(asc(ScheduledContact.scheduled_time)).all()
+        return jsonify([{
+            'id': c.id,
+            'lead_id': c.lead_id,
+            'lead_name': c.lead.name,
+            'scheduled_time': c.scheduled_time.isoformat(),
+            'notes': c.notes,
+            'is_notified': c.is_notified
+        } for c in contacts])
+    @app.route('/api/send-message', methods=['POST'])
     @login_required
-    def whatsapp_send(lead_id):
-        lead = Lead.query.filter_by(id=lead_id, user_id=current_user.id).first_or_404()
-        templates = MessageTemplate.query.filter_by(user_id=current_user.id).all()
-        return render_template('whatsapp_send.html', lead=lead, templates=templates)
-    
-    @app.route('/settings')
+    def send_message():
+        data = request.get_json()
+        lead_id = data.get('lead_id')
+        message = data.get('message')
+        is_bulk = data.get('is_bulk', False)
+        
+        if not message:
+            return jsonify({'error': 'Mensagem é obrigatória.'}), 400
+            
+        if is_bulk:
+            leads = Lead.query.filter_by(user_id=current_user.id).all()
+            for lead in leads:
+                # In a real app, this would send an email/SMS/WhatsApp
+                # For now, we just create a "sent" scheduled message record
+                msg = ScheduledMessage(
+                    message=message,
+                    scheduled_time=datetime.utcnow(),
+                    is_sent=True,
+                    user_id=current_user.id,
+                    lead_id=lead.id,
+                    is_bulk=True
+                )
+                db.session.add(msg)
+        else:
+            if not lead_id:
+                return jsonify({'error': 'Lead é obrigatório para envio individual.'}), 400
+                
+            msg = ScheduledMessage(
+                message=message,
+                scheduled_time=datetime.utcnow(),
+                is_sent=True,
+                user_id=current_user.id,
+                lead_id=lead_id,
+                is_bulk=False
+            )
+            db.session.add(msg)
+            
+        db.session.commit()
+        return jsonify({'message': 'Lembrete enviado com sucesso!'})
+
+    @app.route('/api/schedule-message', methods=['POST'])
     @login_required
-    def settings():
-        return render_template('settings.html', user=current_user)
+    def schedule_message():
+        data = request.get_json()
+        lead_id = data.get('lead_id')
+        message = data.get('message')
+        scheduled_time_str = data.get('scheduled_time')
+        is_bulk = data.get('is_bulk', False)
+        
+        if not message or not scheduled_time_str:
+            return jsonify({'error': 'Mensagem e data/hora são obrigatórios.'}), 400
+            
+        try:
+            scheduled_time = datetime.strptime(scheduled_time_str, '%Y-%m-%dT%H:%M')
+        except ValueError:
+            try:
+                scheduled_time = datetime.strptime(scheduled_time_str, '%Y-%m-%dT%H:%M:%S')
+            except ValueError:
+                return jsonify({'error': 'Formato de data/hora inválido.'}), 400
+                
+        if is_bulk:
+            # For bulk scheduling, we might create one record per lead or handle differently
+            # Here we create one record per lead for simplicity
+            leads = Lead.query.filter_by(user_id=current_user.id).all()
+            for lead in leads:
+                msg = ScheduledMessage(
+                    message=message,
+                    scheduled_time=scheduled_time,
+                    is_sent=False,
+                    user_id=current_user.id,
+                    lead_id=lead.id,
+                    is_bulk=True
+                )
+                db.session.add(msg)
+        else:
+            if not lead_id:
+                return jsonify({'error': 'Lead é obrigatório para agendamento individual.'}), 400
+                
+            msg = ScheduledMessage(
+                message=message,
+                scheduled_time=scheduled_time,
+                is_sent=False,
+                user_id=current_user.id,
+                lead_id=lead_id,
+                is_bulk=False
+            )
+            db.session.add(msg)
+            
+        db.session.commit()
+        return jsonify({'message': 'Lembrete agendado com sucesso!'})
