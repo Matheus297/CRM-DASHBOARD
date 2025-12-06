@@ -12,7 +12,8 @@ WHATSAPP_WEB_URL = "https://web.whatsapp.com/"
 MAX_WAIT_TIME = 90000  # 90 segundos - aumentado para ambientes de baixo processamento
 
 # Caminho para salvar o estado da sessão do navegador
-SESSION_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'sessions')
+# Caminho para salvar o estado da sessão do navegador
+SESSION_DIR = os.path.join('/tmp', 'sessions')
 os.makedirs(SESSION_DIR, exist_ok=True)
 
 async def init_browser():
