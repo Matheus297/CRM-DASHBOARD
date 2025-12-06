@@ -14,11 +14,8 @@ SAO_PAULO_TZ = ZoneInfo('America/Sao_Paulo')
 def register_routes(app):
     
     @app.route('/')
-    @app.route('/<path:path>')
-    def serve(path=None):
-        if path and path.startswith('api'):
-            return jsonify({'error': 'Not found'}), 404
-        return send_from_directory('frontend/dist', 'index.html')
+    def home():
+        return jsonify({'message': 'API online'})
 
     @app.route('/api/check-auth')
     def check_auth():

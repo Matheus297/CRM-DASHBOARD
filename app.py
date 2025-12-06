@@ -19,8 +19,7 @@ def create_app():
     
     # Configuration
     app.secret_key = os.environ.get("SESSION_SECRET", "dev-secret-key")
-    # Use /tmp for sqlite in serverless if no DATABASE_URL is set
-    app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL", "sqlite:////tmp/opai_crm.db")
+    app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL", "sqlite:///opai_crm.db")
     app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
         "pool_recycle": 300,
         "pool_pre_ping": True,
